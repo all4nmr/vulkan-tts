@@ -21,37 +21,16 @@ jobs:
           fetch-depth: 0
 
       - name: Install Vulkan SDK
-        run: |
-          curl.exe -L -o "$env:TEMP\vulkan-sdk.exe" "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe"
-          Start-Process -Wait -FilePath "$env:TEMP\vulkan-sdk.exe" -ArgumentList "--accept-licenses", "--default-answer", "--confirm-command", "install"
-          $paths = @(
-            "C:\VulkanSDK\*",
-            "$env:ProgramFiles\VulkanSDK\*",
-            "$env:LOCALAPPDATA\VulkanSDK\*"
-          )
-          foreach ($p in $paths) {
-            $matches = Get-ChildItem -Path $p -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-            if ($matches) {
-              $found = $matches[0].FullName
-              Write-Output "SDK found at: $found"
-              Add-Content -Path $env:GITHUB_ENV -Value "VULKAN_SDK=$found"
-              break
-            }
-          }
-        shell: pwsh
+        uses: jakoch/install-vulkan-sdk-action@v1.5.5
+        with:
+          vulkan_version: latest
+          cache: true
 
       - name: Build qwen-tts (Vulkan)
         run: |
           Write-Output "VULKAN_SDK=$env:VULKAN_SDK"
-          cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON -DVulkan_ROOT="$env:VULKAN_SDK"
-          if ($LASTEXITCODE -eq 0) {
-            cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
-          } else {
-            Write-Output "Vulkan cmake failed. Retrying CPU-only..."
-            Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-            cmake -S qwentts.cpp -B build
-            cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
-          }
+          cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         shell: pwsh
 
       - name: Find built executables
