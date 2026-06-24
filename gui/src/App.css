@@ -63,7 +63,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 0;
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
 }
 
 /* ── Scrollbar ── */
@@ -73,8 +76,9 @@ body {
 
 /* ── Window ── */
 .window {
-  width: 1080px;
-  height: 720px;
+  width: 100%;
+  height: 100%;
+  max-width: 1200px;
   background: var(--bg-surface);
   border-radius: 12px;
   box-shadow: var(--shadow);
@@ -820,4 +824,38 @@ textarea {
   display: flex;
   justify-content: center;
   padding: 8px 0;
+}
+
+/* ── GPU Info Display ── */
+.gpu-info-row {
+  display: flex;
+  gap: 24px;
+}
+
+.gpu-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpu-info-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gpu-info-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.gpu-device-name {
+  font-size: 13px;
+  color: var(--text-secondary);
 }

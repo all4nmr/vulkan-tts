@@ -9,8 +9,7 @@ const LABELS = {
   title: { ko: "설정", en: "Settings" },
   gpuBackend: { ko: "GPU 백엔드", en: "GPU Backend" },
   inferenceEngine: { ko: "추론 엔진", en: "Inference Engine" },
-  gpuSelection: { ko: "GPU 선택", en: "GPU Selection" },
-  cpuFallback: { ko: "CPU 폴백", en: "CPU Fallback" },
+  gpuSelection: { ko: "GPU 상태", en: "GPU Status" },
   modelMgmt: { ko: "모델 관리", en: "Model Management" },
   searchModels: { ko: "모델 검색...", en: "Search models..." },
   addModel: { ko: "모델 추가", en: "Add Model" },
@@ -23,16 +22,6 @@ const LABELS = {
   sampleRate: { ko: "샘플 레이트", en: "Sample Rate" },
 };
 
-type InferenceEngine = "cuda" | "rocm" | "metal" | "directml" | "vulkan";
-
-const ENGINES: { id: InferenceEngine; label: string }[] = [
-  { id: "cuda", label: "CUDA" },
-  { id: "rocm", label: "ROCm" },
-  { id: "metal", label: "Metal" },
-  { id: "directml", label: "DirectML" },
-  { id: "vulkan", label: "Vulkan" },
-];
-
 interface ModelCard {
   name: string;
   size: string;
@@ -41,16 +30,12 @@ interface ModelCard {
 }
 
 const MOCK_MODELS: ModelCard[] = [
-  { name: "XTTS-v2", size: "1.8 GB", status: "installed" },
-  { name: "Bark", size: "3.2 GB", status: "available" },
-  { name: "CosyVoice", size: "2.1 GB", status: "downloading", progress: 68 },
-  { name: "MeloTTS", size: "420 MB", status: "available" },
+  { name: "Qwen3-TTS 1.7B (Base)", size: "2.1 GB", status: "installed" },
+  { name: "Qwen3-TTS 0.6B (Base)", size: "993 MB", status: "available" },
+  { name: "Qwen3-TTS 1.7B (Custom)", size: "2.1 GB", status: "available" },
 ];
 
 export default function SettingsPanel({ lang }: Props) {
-  const [engine, setEngine] = useState<InferenceEngine>("rocm");
-  const [gpu, setGpu] = useState("RX 7900 XTX");
-  const [cpuFallback, setCpuFallback] = useState(true);
   const [search, setSearch] = useState("");
   const [uiLang, setUiLang] = useState("ko");
   const [defaultLang, setDefaultLang] = useState("ko");
@@ -73,56 +58,26 @@ export default function SettingsPanel({ lang }: Props) {
       {/* GPU Backend */}
       <section className="card">
         <h3 className="section-title">{l("gpuBackend")}</h3>
-        <div className="form-group">
-          <label className="form-label">{l("inferenceEngine")}</label>
-          <div className="chip-group">
-            {ENGINES.map((eng) => (
-              <button
-                key={eng.id}
-                className={`chip${engine === eng.id ? " active" : ""}`}
-                onClick={() => setEngine(eng.id)}
-              >
-                {eng.label}
-              </button>
-            ))}
+        <div className="gpu-info-row">
+          <div className="gpu-info-item">
+            <span className="gpu-info-label">{l("inferenceEngine")}</span>
+            <span className="gpu-info-value">
+              <span className="badge badge-green">Vulkan</span>
+            </span>
           </div>
-        </div>
-        <div className="settings-row">
-          <div className="form-group">
-            <label className="form-label">{l("gpuSelection")}</label>
-            <select value={gpu} onChange={(e) => setGpu(e.target.value)}>
-              <option>RX 7900 XTX</option>
-              <option>RX 6900 XT</option>
-              <option>RX 6800</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">{l("cpuFallback")}</label>
-            <div className="toggle-row">
-              <button
-                className={`toggle${cpuFallback ? " on" : ""}`}
-                onClick={() => setCpuFallback(!cpuFallback)}
-                role="switch"
-                aria-checked={cpuFallback}
-              />
-            </div>
+          <div className="gpu-info-item">
+            <span className="gpu-info-label">{l("gpuSelection")}</span>
+            <span className="gpu-info-value">
+              <span className="gpu-device-name">AMD Radeon (자동 감지)</span>
+              <span className="gpu-dot" />
+            </span>
           </div>
         </div>
       </section>
 
-      {/* Model Management */}
+      {/* Model Status */}
       <section className="card">
         <h3 className="section-title">{l("modelMgmt")}</h3>
-        <div className="settings-row">
-          <input
-            type="text"
-            className="search-input"
-            placeholder={l("searchModels")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button className="btn">{l("addModel")}</button>
-        </div>
         <div className="model-grid">
           {filteredModels.map((m) => (
             <div key={m.name} className="model-card">
@@ -143,7 +98,7 @@ export default function SettingsPanel({ lang }: Props) {
                   </div>
                 )}
                 {m.status === "available" && (
-                  <button className="btn btn-small">{l("available")}</button>
+                  <span className="badge">{l("available")}</span>
                 )}
               </div>
             </div>
