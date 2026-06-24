@@ -1,0 +1,87 @@
+name: Build Windows (Vulkan)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '17.0'
+
+      - name: Install Vulkan SDK
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe" -OutFile "$env:TEMP\vulkan-sdk.exe"
+          Start-Process -FilePath "$env:TEMP\vulkan-sdk.exe" -ArgumentList "--root", "C:\VulkanSDK", "--accept-licenses", "--default-answer", "--confirm-command", "install" -Wait -NoNewWindow
+
+      - name: Configure CMake (Vulkan)
+        run: |
+          cmake -B build -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
+        env:
+          VULKAN_SDK: C:\VulkanSDK
+
+      - name: Build
+        run: |
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      - name: List build artifacts
+        run: |
+          Get-ChildItem -Path build/ -Include *.exe, *.dll -Recurse | Select-Object Name, Length
+
+      - name: Create package directory
+        run: |
+          New-Item -ItemType Directory -Force -Path package/bin
+          Copy-Item build/Release/qwen-tts.exe package/bin/ -ErrorAction SilentlyContinue
+          Copy-Item build/qwen-tts.exe package/bin/ -ErrorAction SilentlyContinue
+          Copy-Item build/Release/tts-server.exe package/bin/ -ErrorAction SilentlyContinue
+          Copy-Item build/tts-server.exe package/bin/ -ErrorAction SilentlyContinue
+          Copy-Item build/Release/*.dll package/bin/ -ErrorAction SilentlyContinue
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulkan-tts-windows
+          path: package/
+          retention-days: 30
+
+  create-release:
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vulkan-tts-windows
+          path: vulkan-tts-windows
+
+      - name: Create ZIP
+        run: |
+          cd vulkan-tts-windows
+          zip -r ../vulkan-tts-windows.zip .
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: vulkan-tts-windows.zip
+          generate_release_notes: true

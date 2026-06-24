@@ -1,0 +1,6 @@
+build/
+models/
+*.wav
+*.gguf
+.DS_Store
+cmake-build-*/
