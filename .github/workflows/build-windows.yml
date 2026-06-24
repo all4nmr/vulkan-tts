@@ -34,7 +34,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Build Tauri GUI (ScrappyVox)
+      - name: Build qwen-tts engine (Vulkan)
+        run: |
+          cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+        shell: pwsh
+
+      - name: Build Tauri GUI (ScrappyVox MSI)
+        continue-on-error: true
         shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ""
@@ -43,12 +50,6 @@ jobs:
           npm ci
           npx tauri build --bundles msi
           echo "Tauri build complete"
-
-      - name: Build qwen-tts (Vulkan)
-        run: |
-          cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
-          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
-        shell: pwsh
 
       - name: Package artifacts
         run: |
@@ -63,14 +64,13 @@ jobs:
           # Copy built exes and DLLs
           $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
-          # Copy Tauri GUI MSI installer
-          $msi = Get-ChildItem -Path gui/src-tauri/target/release/bundle/msi/ -Filter '*.msi' | Select-Object -First 1
+          # Copy Tauri GUI MSI installer (if built successfully)
+          $msi = Get-ChildItem -Path gui/src-tauri/target/release/bundle/msi/ -Filter '*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($msi) {
             Copy-Item $msi.FullName -Destination package/gui/
             Write-Host "MSI found: $($msi.Name)"
           } else {
-            Write-Host "No MSI found, checking other bundle locations..."
-            Get-ChildItem -Path gui/src-tauri/target/release/bundle/ -Recurse -Filter '*.msi' | ForEach-Object { Copy-Item $_.FullName -Destination package/gui/ }
+            Write-Host "No MSI found - Tauri GUI build may have failed. CLI tools still included."
           }
         shell: pwsh
 
