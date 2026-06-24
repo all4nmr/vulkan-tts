@@ -1,17 +1,10 @@
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
-use tauri::{command, AppHandle, Emitter, Manager};
+use tauri::{command, AppHandle, Emitter};
 
 // ── Estimate how many BPE tokens a text needs ──
 fn estimate_tokens(text: &str) -> usize {
-    // Korean: ~1.5 tokens/char, English/others: ~0.8 tokens/char
-    // Count bytes vs chars to guess language density
-    let byte_len = text.len();
     let char_len = text.chars().count();
-    let hangul_ratio = text.chars().filter(|c| matches!(c, '\u{AC00}'..='\u{D7A3}' | 'a'..='z' | 'A'..='Z')).count() as f64 / char_len.max(1) as f64;
-    
-    // Rough BPE estimate based on character count
     (char_len as f64 * 1.3).ceil() as usize + 30 // 30 tokens overhead for chat template
 }
 
@@ -297,7 +290,7 @@ async fn run_tts(
 
         // Read WAV data for concatenation
         match read_wav_data(&chunk_out_str) {
-            Ok((data, sr, ch, bps)) => {
+            Ok((_data, sr, ch, bps)) => {
                 sample_rate = sr;
                 num_channels = ch;
                 bits_per_sample = bps;
