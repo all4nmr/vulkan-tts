@@ -1,2 +1,5 @@
-Hello, welcome to my project. This is a sample text for voice cloning.
-voice-clone
+안녕하세요, ScrappyVox 음성 합성 테스트입니다.
+오늘 날씨가 참 좋네요. 산책하기 좋은 날이에요.
+이것은 음성 클론 샘플입니다. 제 목소리로 읽어주세요.
+한글 텍스트도 완벽하게 지원합니다.
+반갑습니다.

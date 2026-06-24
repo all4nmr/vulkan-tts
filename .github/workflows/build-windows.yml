@@ -64,6 +64,11 @@ jobs:
           # Copy built exes and DLLs
           $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
+          # Copy Tauri GUI portable EXE (runs without MSI installation)
+          if (Test-Path 'gui/src-tauri/target/release/scrappyvox.exe') {
+            Copy-Item gui/src-tauri/target/release/scrappyvox.exe -Destination package/gui/ScrappyVox.exe
+            Write-Host "Portable GUI found: scrappyvox.exe"
+          }
           # Copy Tauri GUI MSI installer (if built successfully)
           $msi = Get-ChildItem -Path gui/src-tauri/target/release/bundle/msi/ -Filter '*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($msi) {
