@@ -1,4 +1,4 @@
-name: Build Windows (Vulkan)
+name: Build Windows
 
 on:
   push:
@@ -19,15 +19,8 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Vulkan SDK
-        uses: humbletim/setup-vulkan-sdk@v1.2.0
-        with:
-          vulkan-query-version: 1.3.290.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader
-          vulkan-use-cache: true
-
-      - name: Configure CMake (Vulkan)
-        run: cmake -B build -DGGML_VULKAN=ON
+      - name: Configure CMake
+        run: cmake -B build
         shell: pwsh
 
       - name: Build
@@ -35,9 +28,9 @@ jobs:
         shell: pwsh
 
       - name: Find built executables
-        id: find-binaries
         run: |
           $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','tts-server.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
+          if ($items.Count -eq 0) { Write-Output "No files found!"; exit 1 }
           Write-Output "Found $($items.Count) files"
           $items | ForEach-Object { Write-Output "  $_" }
           
