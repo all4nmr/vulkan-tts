@@ -20,15 +20,25 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: latest
-          cache: true
+      - name: Install Vulkan SDK (Chocolatey)
+        run: |
+          choco install vulkan-sdk -y --no-progress --limit-output
+          echo "Vulkan SDK installed"
 
       - name: Build qwen-tts (Vulkan)
         run: |
+          # Auto-detect Vulkan SDK path
+          $vk = Get-ChildItem -Path "C:\Program Files\VulkanSDK" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if ($vk) { $env:VULKAN_SDK = $vk.FullName }
+          Write-Output "VULKAN_SDK=$env:VULKAN_SDK"
+          
           cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
+          if ($LASTEXITCODE -ne 0) {
+            # Retry with explicit root
+            Write-Output "Retrying with explicit Vulkan_ROOT..."
+            Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+            cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON -DVulkan_ROOT="$env:VULKAN_SDK"
+          }
           cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         shell: pwsh
 
