@@ -109,7 +109,7 @@ export default function TTSPanel({ lang }: Props) {
         speaker: "",
         outputPath: defaultOutput,
         temp: 0.7,
-        qwenTtsPath: "./qwen-tts",
+        qwenTtsPath: "",
       });
       console.log(result);
       setAudioSrc(`file://${defaultOutput}`);

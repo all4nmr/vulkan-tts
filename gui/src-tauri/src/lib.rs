@@ -219,12 +219,18 @@ async fn run_tts(
     let mut num_channels: u16 = 1;
     let mut bits_per_sample: u16 = 16;
 
-    // Check if qwen-tts binary exists
+    // Resolve qwen-tts binary path relative to our own executable location
     let qwen_path = if qwen_tts_path.is_empty() {
+        // Default: look for ../bin/qwen-tts(.exe) relative to our own exe
+        let exe_dir = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let bin_path = exe_dir.join("..").join("bin");
         if cfg!(target_os = "windows") {
-            "./qwen-tts.exe".to_string()
+            bin_path.join("qwen-tts.exe").to_string_lossy().to_string()
         } else {
-            "./qwen-tts".to_string()
+            bin_path.join("qwen-tts").to_string_lossy().to_string()
         }
     } else {
         qwen_tts_path
