@@ -1,4 +1,6 @@
-# Vulkan-TTS
+# ScrappyVox
+
+**[ScrappyAI](https://scrappyai.blogspot.com)의 AI 음성 클론 데스크탑 앱**
 
 **Windows + AMD GPU에서 Vulkan 가속으로 동작하는 로컬 AI 음성 합성 도구**
 
@@ -14,7 +16,7 @@
 
 ## 다운로드
 
-[GitHub Releases](https://github.com/all4nmr/vulkan-tts/releases) 페이지에서 최신 `vulkan-tts-windows.zip` 다운로드
+[GitHub Releases](https://github.com/all4nmr/vulkan-tts/releases) 페이지에서 최신 `scrappyvox-windows.zip` 다운로드
 
 ## 실행 방법
 

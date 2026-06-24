@@ -49,7 +49,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vulkan-tts-windows
+          name: scrappyvox-windows
           path: package/
           retention-days: 30
 
@@ -61,17 +61,17 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: vulkan-tts-windows
-          path: vulkan-tts-windows
+          name: scrappyvox-windows
+          path: scrappyvox-windows
 
       - name: Create ZIP
         run: |
-          cd vulkan-tts-windows
-          zip -r ../vulkan-tts-windows.zip .
+          cd scrappyvox-windows
+          zip -r ../scrappyvox-windows.zip .
           cd ..
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: vulkan-tts-windows.zip
+          files: scrappyvox-windows.zip
           generate_release_notes: true
