@@ -36,10 +36,12 @@ jobs:
 
       - name: Build Tauri GUI (ScrappyVox)
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ""
         run: |
           cd gui
           npm ci
-          npm run tauri build -- --bundles msi
+          npx tauri build --bundles msi
           echo "Tauri build complete"
 
       - name: Build qwen-tts (Vulkan)
