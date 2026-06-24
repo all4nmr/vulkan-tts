@@ -244,11 +244,11 @@ async fn run_tts(
             .and_then(|p| p.parent().map(|d| d.to_path_buf()))
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
         let bin_path = exe_dir.join("..").join("bin");
-        if cfg!(target_os = "windows") {
-            bin_path.join("qwen-tts.exe").to_string_lossy().to_string()
-        } else {
-            bin_path.join("qwen-tts").to_string_lossy().to_string()
-        }
+        let exe_name = if cfg!(target_os = "windows") { "qwen-tts.exe" } else { "qwen-tts" };
+        // Canonicalize to resolve any ".." components
+        let full_path = std::fs::canonicalize(bin_path.join(exe_name))
+            .unwrap_or_else(|_| bin_path.join(exe_name));
+        full_path.to_string_lossy().to_string()
     } else {
         qwen_tts_path
     };

@@ -62,12 +62,6 @@ body {
   margin: 0;
 }
 
-#root {
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(224,36,36,0.04) 0%, transparent 70%),
-              radial-gradient(ellipse 60% 50% at 80% 80%, rgba(224,36,36,0.03) 0%, transparent 60%),
-              var(--bg-primary);
-}
-
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -81,6 +75,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(224,36,36,0.04) 0%, transparent 70%),
+              radial-gradient(ellipse 60% 50% at 80% 80%, rgba(224,36,36,0.03) 0%, transparent 60%),
+              var(--bg-primary);
 }
 
 /* ── Titlebar ── */
