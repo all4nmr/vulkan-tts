@@ -12,9 +12,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
 
     steps:
       - name: Checkout with submodules
@@ -22,39 +19,31 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: '17.0'
-
       - name: Install Vulkan SDK
-        shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe" -OutFile "$env:TEMP\vulkan-sdk.exe"
-          Start-Process -FilePath "$env:TEMP\vulkan-sdk.exe" -ArgumentList "--root", "C:\VulkanSDK", "--accept-licenses", "--default-answer", "--confirm-command", "install" -Wait -NoNewWindow
+          choco install vulkan-sdk -y --no-progress
 
       - name: Configure CMake (Vulkan)
         run: |
-          cmake -B build -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
-        env:
-          VULKAN_SDK: C:\VulkanSDK
+          cmake -B build -DGGML_VULKAN=ON
+        shell: pwsh
 
       - name: Build
         run: |
           cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+        shell: pwsh
 
-      - name: List build artifacts
+      - name: Find built executables
+        id: find-binaries
         run: |
-          Get-ChildItem -Path build/ -Include *.exe, *.dll -Recurse | Select-Object Name, Length
-
-      - name: Create package directory
-        run: |
-          New-Item -ItemType Directory -Force -Path package/bin
-          Copy-Item build/Release/qwen-tts.exe package/bin/ -ErrorAction SilentlyContinue
-          Copy-Item build/qwen-tts.exe package/bin/ -ErrorAction SilentlyContinue
-          Copy-Item build/Release/tts-server.exe package/bin/ -ErrorAction SilentlyContinue
-          Copy-Item build/tts-server.exe package/bin/ -ErrorAction SilentlyContinue
-          Copy-Item build/Release/*.dll package/bin/ -ErrorAction SilentlyContinue
+          $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','tts-server.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
+          Write-Output "Found $($items.Count) files"
+          $items | ForEach-Object { Write-Output "  $_" }
+          
+          # Create package
+          New-Item -ItemType Directory -Force -Path package/bin | Out-Null
+          $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
+        shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
