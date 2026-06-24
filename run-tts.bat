@@ -1,44 +1,32 @@
 @echo off
 chcp 65001 >nul
-set BIN=bin
+REM run-tts.bat — Vulkan-TTS 음성 클론 실행기
+REM 사용법: run-tts "텍스트"
+
 set MODEL=models\qwen-talker-1.7b-base-Q8_0.gguf
 set CODEC=models\qwen-tokenizer-12hz-Q8_0.gguf
+set VOICE=내목소리.wav
+set OUTPUT=결과.wav
 
-if not exist "%BIN%\qwen-tts.exe" (
-    echo ERROR: qwen-tts.exe not found in %BIN%/
-    pause
-    exit /b 1
-)
 if not exist "%MODEL%" (
-    echo ERROR: %MODEL% not found
-    pause
-    exit /b 1
-)
-if not exist "%CODEC%" (
-    echo ERROR: %CODEC% not found
+    echo ❌ 모델 파일 없음: %MODEL%
+    echo    다운로드: https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF
     pause
     exit /b 1
 )
 
-echo ========================================
-echo  Vulkan-TTS - Voice Cloning Tool
-echo ========================================
-echo.
-
-:GET_VOICE
-set /p VOICE="Voice file (WAV, 24kHz mono): "
 if not exist "%VOICE%" (
-    echo File not found: %VOICE%
-    goto GET_VOICE
+    echo ❌ 참조 음성 파일 없음: %VOICE%
+    echo    3초 WAV 파일(24000Hz, mono)을 내목소리.wav로 저장하세요
+    pause
+    exit /b 1
 )
 
-:GET_TEXT
-set /p TEXT="Text to speak (Korean supported): "
-if "%TEXT%"=="" goto GET_TEXT
+echo %* > prompt.txt
+bin\qwen-tts.exe --model %MODEL% --codec %CODEC% --ref-wav %VOICE% --lang Korean -o %OUTPUT% < prompt.txt
 
-echo.
-echo Generating...
-echo %TEXT% | "%BIN%\qwen-tts.exe" --model "%MODEL%" --codec "%CODEC%" --ref-wav "%VOICE%" --lang Korean -o output.wav
-echo.
-echo Done! Saved to output.wav
-pause
+if %ERRORLEVEL% equ 0 (
+    echo ✅ 완료: %OUTPUT%
+) else (
+    echo ❌ 오류 발생
+)

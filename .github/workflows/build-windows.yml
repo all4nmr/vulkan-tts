@@ -41,6 +41,8 @@ jobs:
           $items | ForEach-Object { Write-Output "  $_" }
           New-Item -ItemType Directory -Force -Path package/bin | Out-Null
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
+          # Include batch launcher
+          Copy-Item run-tts.bat -Destination package/bin/ -ErrorAction SilentlyContinue
         shell: pwsh
 
       - name: Upload artifacts
