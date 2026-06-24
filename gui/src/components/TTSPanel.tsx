@@ -1,5 +1,9 @@
 import { useState, useRef } from "react";
 import type { Lang } from "../App";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import ProgressRing from "./ProgressRing";
 import ProgressBar from "./ProgressBar";
 
@@ -46,28 +50,15 @@ export default function TTSPanel({ lang }: Props) {
   };
 
   const browseFile = async (setter: (v: string) => void, filters: { name: string; extensions: string[] }[]) => {
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const result = await open({ multiple: false, filters });
-      if (result) setter(result as string);
-    } catch {
-      // Fallback for browser dev mode
-      const path = prompt("파일 경로를 입력하세요:");
-      if (path) setter(path);
-    }
+    const result = await open({ multiple: false, filters });
+    if (result) setter(result as string);
   };
 
   const browseOutput = async () => {
-    try {
-      const { save } = await import("@tauri-apps/plugin-dialog");
-      const result = await save({
-        filters: [{ name: "WAV Audio", extensions: ["wav"] }],
-      });
-      if (result) setOutputPath(result as string);
-    } catch {
-      const path = prompt("저장할 WAV 경로를 입력하세요:");
-      if (path) setOutputPath(path);
-    }
+    const result = await save({
+      filters: [{ name: "WAV Audio", extensions: ["wav"] }],
+    });
+    if (result) setOutputPath(result as string);
   };
 
   const handleGenerate = async () => {
@@ -78,8 +69,6 @@ export default function TTSPanel({ lang }: Props) {
     setAudioSrc(null);
 
     try {
-      // Listen for progress events from Rust backend
-      const { listen } = await import("@tauri-apps/api/event");
       const unlisten = await listen<{
         percent: number;
         chunk: number;
@@ -98,7 +87,6 @@ export default function TTSPanel({ lang }: Props) {
       });
       unlistenRef.current = unlisten;
 
-      const { invoke } = await import("@tauri-apps/api/core");
       const defaultOutput = outputPath || `${text.trim().slice(0, 20).replace(/[^a-zA-Z0-9가-힣]/g, "_")}.wav`;
       const result = await invoke<string>("run_tts", {
         modelPath,
@@ -113,7 +101,6 @@ export default function TTSPanel({ lang }: Props) {
       });
       console.log(result);
       // Read the generated WAV as base64 data URL for playback
-      const { readFile } = await import("@tauri-apps/plugin-fs");
       try {
         const wavBytes = await readFile(defaultOutput);
         const blob = new Blob([wavBytes], { type: "audio/wav" });
