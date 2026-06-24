@@ -36,7 +36,7 @@ const MOCK_MODELS: ModelCard[] = [
 ];
 
 export default function SettingsPanel({ lang }: Props) {
-  const [search, setSearch] = useState("");
+  const [search] = useState("");
   const [uiLang, setUiLang] = useState("ko");
   const [defaultLang, setDefaultLang] = useState("ko");
   const [sr, setSr] = useState("24000");
