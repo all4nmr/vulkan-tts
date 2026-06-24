@@ -26,6 +26,22 @@ jobs:
           vulkan_version: latest
           cache: true
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Tauri GUI (ScrappyVox)
+        shell: pwsh
+        run: |
+          cd gui
+          npm ci
+          npm run tauri build -- --bundles msi
+          echo "Tauri build complete"
+
       - name: Build qwen-tts (Vulkan)
         run: |
           cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
@@ -37,6 +53,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path package/scripts | Out-Null
           New-Item -ItemType Directory -Force -Path package/models | Out-Null
           New-Item -ItemType Directory -Force -Path package/bin | Out-Null
+          New-Item -ItemType Directory -Force -Path package/gui | Out-Null
           # Copy batch launcher from repo root
           Copy-Item run-tts.bat package/ -Force
           Copy-Item sample-korean.txt package/ -Force
@@ -44,6 +61,15 @@ jobs:
           # Copy built exes and DLLs
           $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
+          # Copy Tauri GUI MSI installer
+          $msi = Get-ChildItem -Path gui/src-tauri/target/release/bundle/msi/ -Filter '*.msi' | Select-Object -First 1
+          if ($msi) {
+            Copy-Item $msi.FullName -Destination package/gui/
+            Write-Host "MSI found: $($msi.Name)"
+          } else {
+            Write-Host "No MSI found, checking other bundle locations..."
+            Get-ChildItem -Path gui/src-tauri/target/release/bundle/ -Recurse -Filter '*.msi' | ForEach-Object { Copy-Item $_.FullName -Destination package/gui/ }
+          }
         shell: pwsh
 
       - name: Upload artifacts
