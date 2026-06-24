@@ -19,17 +19,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Configure CMake
-        run: cmake -B build
-        shell: pwsh
-
-      - name: Build
-        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+      - name: Build qwen-tts (CPU)
+        run: |
+          cmake -S qwentts.cpp -B build
+          cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         shell: pwsh
 
       - name: Find built executables
         run: |
-          $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','tts-server.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
+          $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           if ($items.Count -eq 0) { Write-Output "No files found!"; exit 1 }
           Write-Output "Found $($items.Count) files"
           $items | ForEach-Object { Write-Output "  $_" }
