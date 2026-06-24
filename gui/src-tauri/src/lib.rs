@@ -101,6 +101,25 @@ fn split_paragraph(text: &str, max_tokens: usize) -> Vec<String> {
     chunks
 }
 
+// ── Normalize 16-bit PCM audio to consistent peak level ──
+fn normalize_pcm(data: &[u8], target_peak: f64) -> Vec<u8> {
+    if data.len() < 2 { return data.to_vec(); }
+    // Find current peak
+    let samples: Vec<i16> = data.chunks(2)
+        .filter(|c| c.len() == 2)
+        .map(|c| i16::from_le_bytes([c[0], c[1]]))
+        .collect();
+    let peak = samples.iter().map(|s| s.abs()).max().unwrap_or(1).max(1) as f64;
+    let gain = target_peak / peak;
+    if (gain - 1.0).abs() < 0.05 { return data.to_vec(); } // within 5%, skip
+    let mut out = Vec::with_capacity(data.len());
+    for s in &samples {
+        let scaled = (*s as f64 * gain).round().clamp(-32768.0, 32767.0) as i16;
+        out.extend_from_slice(&scaled.to_le_bytes());
+    }
+    out
+}
+
 // ── WAV concatenation ──
 fn read_wav_data(path: &str) -> Result<(Vec<u8>, u32, u16, u16), String> {
     let mut file = std::fs::File::open(path)
@@ -258,12 +277,19 @@ async fn run_tts(
         let chunk_out = temp_dir.join(format!("chunk_{:04}.wav", chunk_idx));
         let chunk_out_str = chunk_out.to_string_lossy().to_string();
 
+        // Calculate progress: 0-85% for synthesis, 5% per chunk
+        let progress_base = if total_chunks > 1 {
+            ((chunk_idx as f64 - 1.0) / total_chunks as f64 * 85.0).round() as i32
+        } else {
+            0
+        };
+
         // Emit chunk progress
         let _ = app_handle.emit("tts-progress", serde_json::json!({
             "phase": "synthesizing",
             "chunk": chunk_idx,
             "total_chunks": total_chunks,
-            "percent": ((chunk_idx as f64 / total_chunks as f64) * 100.0).round() as i32,
+            "percent": progress_base,
             "chunk_percent": 0,
             "text": format!("청크 {}/{} 변환 중...", chunk_idx, total_chunks)
         }));
@@ -325,31 +351,40 @@ async fn run_tts(
             }
         }
 
-        // Emit chunk complete
+        // Emit chunk complete - progress goes to end of this chunk's range
+        let chunk_end = if total_chunks > 1 {
+            ((chunk_idx as f64 / total_chunks as f64) * 85.0).round() as i32
+        } else {
+            85
+        };
         let _ = app_handle.emit("tts-progress", serde_json::json!({
             "phase": "synthesizing",
             "chunk": chunk_idx,
             "total_chunks": total_chunks,
-            "percent": ((chunk_idx as f64 / total_chunks as f64) * 100.0).round() as i32,
+            "percent": chunk_end,
             "chunk_percent": 100,
             "text": format!("청크 {}/{} 완료", chunk_idx, total_chunks)
         }));
     }
 
-    // Emit concatenating phase
+    // Emit concatenating phase (85-95%)
     let _ = app_handle.emit("tts-progress", serde_json::json!({
         "phase": "concatenating",
         "chunk": total_chunks,
         "total_chunks": total_chunks,
-        "percent": 100,
+        "percent": 90,
         "text": "오디오 파일 병합 중..."
     }));
 
-    // Concatenate all WAV chunks into final output
+    // Concatenate all WAV chunks into final output (with normalization)
     let mut all_data: Vec<Vec<u8>> = Vec::new();
     for wav_path in &chunk_wavs {
         match read_wav_data(wav_path) {
-            Ok((data, _, _, _)) => all_data.push(data),
+            Ok((raw_data, _, _, _)) => {
+                // Normalize to 85% of max to keep consistent volume
+                let normalized = normalize_pcm(&raw_data, 28000.0);
+                all_data.push(normalized);
+            }
             Err(e) => return Err(format!("Failed to read {}: {}", wav_path, e)),
         }
     }
