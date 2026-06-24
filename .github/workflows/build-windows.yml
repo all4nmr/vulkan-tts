@@ -28,21 +28,20 @@ jobs:
 
       - name: Build qwen-tts (Vulkan)
         run: |
-          Write-Output "VULKAN_SDK=$env:VULKAN_SDK"
           cmake -S qwentts.cpp -B build -DGGML_VULKAN=ON
           cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
         shell: pwsh
 
-      - name: Find built executables
+      - name: Package artifacts
         run: |
-          $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
-          if ($items.Count -eq 0) { Write-Output "No files found!"; exit 1 }
-          Write-Output "Found $($items.Count) files"
-          $items | ForEach-Object { Write-Output "  $_" }
+          New-Item -ItemType Directory -Force -Path package/scripts | Out-Null
+          New-Item -ItemType Directory -Force -Path package/models | Out-Null
           New-Item -ItemType Directory -Force -Path package/bin | Out-Null
+          # Copy batch launcher
+          Copy-Item bin/run-tts.bat package/ -Force
+          # Copy built exes and DLLs
+          $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
-          # Include batch launcher
-          Copy-Item run-tts.bat -Destination package/bin/ -ErrorAction SilentlyContinue
         shell: pwsh
 
       - name: Upload artifacts
