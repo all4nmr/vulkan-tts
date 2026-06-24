@@ -1,32 +1,35 @@
 @echo off
 chcp 65001 >nul
-REM run-tts.bat — Vulkan-TTS 음성 클론 실행기
+setlocal enabledelayedexpansion
+
+REM run-tts.bat — 한국어 TTS 실행 도우미
 REM 사용법: run-tts "텍스트"
+REM 또는: run-tts.cmd < text_utf8.txt
 
-set MODEL=models\qwen-talker-1.7b-base-Q8_0.gguf
-set CODEC=models\qwen-tokenizer-12hz-Q8_0.gguf
-set VOICE=내목소리.wav
-set OUTPUT=결과.wav
-
-if not exist "%MODEL%" (
-    echo ❌ 모델 파일 없음: %MODEL%
-    echo    다운로드: https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF
-    pause
-    exit /b 1
+if "%~1"=="" (
+  echo 사용법: run-tts "안녕하세요, 반갑습니다."
+  echo 또는:  type text_utf8.txt ^| run-tts
+  exit /b 1
 )
 
-if not exist "%VOICE%" (
-    echo ❌ 참조 음성 파일 없음: %VOICE%
-    echo    3초 WAV 파일(24000Hz, mono)을 내목소리.wav로 저장하세요
-    pause
-    exit /b 1
-)
+set "TEXT=%~1"
 
-echo %* > prompt.txt
-bin\qwen-tts.exe --model %MODEL% --codec %CODEC% --ref-wav %VOICE% --lang Korean -o %OUTPUT% < prompt.txt
+REM 임시 UTF-8 파일 생성 (BOM 없이)
+if exist "%TEMP%\tts_input.txt" del "%TEMP%\tts_input.txt"
+(
+  echo %TEXT%
+) > "%TEMP%\tts_input.txt"
+
+bin\qwen-tts.exe ^
+  --model models\qwen-talker-1.7b-base-Q8_0.gguf ^
+  --codec models\qwen-tokenizer-12hz-Q8_0.gguf ^
+  --ref-wav myvoice.wav ^
+  --lang Korean ^
+  -o output.wav ^
+  < "%TEMP%\tts_input.txt"
 
 if %ERRORLEVEL% equ 0 (
-    echo ✅ 완료: %OUTPUT%
+  echo ✅ 생성 완료: output.wav
 ) else (
-    echo ❌ 오류 발생
+  echo ❌ 오류 발생
 )
