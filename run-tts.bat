@@ -1,41 +1,27 @@
 @echo off
 chcp 65001 > nul
+setlocal enabledelayedexpansion
 
-set TEXT=%~1
-set VOICE=myvoice.wav
-set MODEL=models\qwen-talker-1.7b-base-Q8_0.gguf
-set CODEC=models\qwen-tokenizer-12hz-Q8_0.gguf
-
-if "%TEXT%"=="" (
-    echo.
-    echo ============================================
-    echo  Vulkan-TTS - Voice Clone TTS for Windows
-    echo ============================================
-    echo.
-    echo USAGE: run-tts.bat "text to speak"
-    echo.
-    echo EXAMPLE:
-    echo   run-tts.bat "Hello, this is my cloned voice."
-    echo.
-    echo NOTES:
-    echo   - Place myvoice.wav (3-10 sec, mono, 24000 Hz) in this folder
-    echo   - Place GGUF models in models\ folder
-    echo   - Korean example: run-tts.bat "myvoice" ^< sample-korean.txt
-    echo.
-    goto :eof
+if "%~1"=="" (
+    echo Usage: run-tts.bat "TEXT TO SPEAK"
+    echo Example: run-tts.bat "Hello, this is my cloned voice."
+    exit /b 1
 )
 
-:: Write text as UTF-8 (no BOM) using PowerShell
-powershell -Command "[System.IO.File]::WriteAllText('__input.txt', '%TEXT%')"
-if errorlevel 1 goto :error
+echo Writing input text...
+set "TEXT=%~1"
+powershell -Command "[System.IO.File]::WriteAllText('input.txt', '%TEXT%')" 2>nul
 
-bin\qwen-tts.exe --model %MODEL% --codec %CODEC% --ref-wav "%VOICE%" --lang Korean -o output.wav < __input.txt
-del __input.txt
-echo.
-echo Done! Saved to output.wav (24kHz mono WAV)
-echo.
-goto :eof
+if not exist "input.txt" (
+    echo Error: Could not create input.txt
+    exit /b 1
+)
 
-:error
-echo Error writing UTF-8 text.
-pause
+echo Generating speech...
+bin\qwen-tts.exe --model models\qwen-talker-1.7b-base-Q8_0.gguf --codec models\qwen-tokenizer-12hz-Q8_0.gguf --ref-wav myvoice.wav --lang Korean -o output.wav < input.txt
+
+if %ERRORLEVEL% equ 0 (
+    echo Success: output.wav created.
+) else (
+    echo Error: generation failed.
+)
