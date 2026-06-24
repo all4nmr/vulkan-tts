@@ -1,0 +1,3 @@
+Hello, this is my cloned voice.
+I can speak both Korean and English.
+This is a test of voice cloning technology.

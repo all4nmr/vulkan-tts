@@ -1,35 +1,33 @@
 @echo off
-chcp 65001 >nul
+chcp 65001 > nul
 setlocal enabledelayedexpansion
 
-REM run-tts.bat — 한국어 TTS 실행 도우미
-REM 사용법: run-tts "텍스트"
-REM 또는: run-tts.cmd < text_utf8.txt
+set TEXT=%~1
+set VOICE=myvoice.wav
+set MODEL=models\qwen-talker-1.7b-base-Q8_0.gguf
+set CODEC=models\qwen-tokenizer-12hz-Q8_0.gguf
 
-if "%~1"=="" (
-  echo 사용법: run-tts "안녕하세요, 반갑습니다."
-  echo 또는:  type text_utf8.txt ^| run-tts
-  exit /b 1
+if "%TEXT%"=="" (
+    echo.
+    echo ============================================
+    echo  Vulkan-TTS - Voice Clone TTS for Windows
+    echo ============================================
+    echo.
+    echo USAGE: run-tts.bat "text to speak"
+    echo.
+    echo EXAMPLE:
+    echo   run-tts.bat "Hello, this is my cloned voice."
+    echo   run-tts.bat "My voice is my voice."
+    echo.
+    echo NOTES:
+    echo   - Place myvoice.wav (3-10 sec, mono, 24kHz) in this folder
+    echo   - Place GGUF models in models\ folder
+    echo.
+    goto :eof
 )
 
-set "TEXT=%~1"
-
-REM 임시 UTF-8 파일 생성 (BOM 없이)
-if exist "%TEMP%\tts_input.txt" del "%TEMP%\tts_input.txt"
-(
-  echo %TEXT%
-) > "%TEMP%\tts_input.txt"
-
-bin\qwen-tts.exe ^
-  --model models\qwen-talker-1.7b-base-Q8_0.gguf ^
-  --codec models\qwen-tokenizer-12hz-Q8_0.gguf ^
-  --ref-wav myvoice.wav ^
-  --lang Korean ^
-  -o output.wav ^
-  < "%TEMP%\tts_input.txt"
-
-if %ERRORLEVEL% equ 0 (
-  echo ✅ 생성 완료: output.wav
-) else (
-  echo ❌ 오류 발생
-)
+echo %TEXT% > __input.txt
+bin\qwen-tts.exe --model %MODEL% --codec %CODEC% --ref-wav %VOICE% --lang Korean -o output.wav < __input.txt
+del __input.txt
+echo.
+echo Done! Saved to output.wav

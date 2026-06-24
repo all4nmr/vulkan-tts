@@ -39,6 +39,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path package/bin | Out-Null
           # Copy batch launcher from repo root
           Copy-Item run-tts.bat package/ -Force
+          Copy-Item sample-korean.txt package/ -Force
+          Copy-Item voice-clone.txt package/ -Force
           # Copy built exes and DLLs
           $items = Get-ChildItem -Path build/ -Recurse -Include 'qwen-tts.exe','qwen-codec.exe','*.dll' | Select-Object -ExpandProperty FullName
           $items | ForEach-Object { Copy-Item $_ -Destination package/bin/ }
