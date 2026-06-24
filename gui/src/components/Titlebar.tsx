@@ -9,13 +9,8 @@ interface Props {
 
 export default function Titlebar({ theme, lang, onToggleTheme, onToggleLang }: Props) {
   return (
-    <div className="titlebar">
-      <div className="traffic-lights">
-        <div className="traffic-light tl-close" />
-        <div className="traffic-light tl-minimize" />
-        <div className="traffic-light tl-zoom" />
-      </div>
-      <div className="window-title">Vulkan-TTS</div>
+    <div className="titlebar" data-tauri-drag-region>
+      <div className="window-title" data-tauri-drag-region>ScrappyVox — AI Voice Cloning</div>
       <div className="titlebar-actions">
         <button className="titlebar-btn" onClick={onToggleLang}>
           {lang === "ko" ? "EN" : "KO"}
