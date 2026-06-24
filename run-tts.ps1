@@ -1,58 +1,40 @@
-#requires -version 5.1
-# Vulkan-TTS: Voice Cloning Script (Korean supported)
-# Run in PowerShell (NOT cmd.exe)
+# run-tts.ps1 — Vulkan-TTS 한국어 음성 클론 실행 스크립트
+# 사용법: .\run-tts.ps1 -Text "안녕하세요" -Voice "내목소리.wav"
 
-$ErrorActionPreference = "Stop"
+param(
+    [string]$Text = "안녕하세요, 반갑습니다.",
+    [string]$Voice = "내목소리.wav",
+    [string]$Output = "결과.wav"
+)
 
-# --- Config ---
-$BIN = "bin"
-$MODEL = "models\qwen-talker-1.7b-base-Q8_0.gguf"
-$CODEC = "models\qwen-tokenizer-12hz-Q8_0.gguf"
-$OUTPUT = "output.wav"
+# UTF-8 설정 (한국어 깨짐 방지)
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+[Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
 
-# --- Check files ---
-if (-not (Test-Path "$BIN\qwen-tts.exe")) { Write-Error "qwen-tts.exe not found in $BIN/"; exit 1 }
-if (-not (Test-Path $MODEL)) { Write-Error "Model not found: $MODEL"; exit 1 }
-if (-not (Test-Path $CODEC)) { Write-Error "Codec not found: $CODEC"; exit 1 }
+# 임시 텍스트 파일 생성 (UTF-8 BOM 없이)
+$tmpFile = [System.IO.Path]::GetTempFileName() + ".txt"
+[System.IO.File]::WriteAllText($tmpFile, $Text, [System.Text.UTF8Encoding]::new($false))
 
-# --- Get voice file (auto-convert m4a/flac → wav) ---
-$voice = Read-Host "Voice file path (m4a, mp3, wav, etc.)"
-if (-not (Test-Path $voice)) { Write-Error "File not found: $voice"; exit 1 }
+Write-Host "🎤 음성 클론 중..." -ForegroundColor Cyan
+Write-Host "   텍스트: $Text"
+Write-Host "   참조음성: $Voice"
+Write-Host "   출력: $Output"
 
-$ext = [System.IO.Path]::GetExtension($voice).ToLower()
-if ($ext -ne ".wav") {
-    # Try ffmpeg (if installed), otherwise require WAV
-    $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
-    if ($ffmpeg) {
-        $wavVoice = "$env:TEMP\voice_converted.wav"
-        & ffmpeg -y -i "$voice" -ac 1 -ar 24000 -sample_fmt s16 "$wavVoice" 2>$null
-        $voice = $wavVoice
-        Write-Host "Converted to WAV: $voice" -ForegroundColor Green
-    } else {
-        Write-Error "Please convert to WAV first (24kHz mono, 16-bit)."
-        Write-Host "ffmpeg not found. Install from: https://ffmpeg.org/download.html"
-        exit 1
-    }
-}
+# qwen-tts 실행 (stdin으로 텍스트 전달)
+Get-Content $tmpFile -Raw | .\qwen-tts.exe `
+    --model models\qwen-talker-1.7b-base-Q8_0.gguf `
+    --codec models\qwen-tokenizer-12hz-Q8_0.gguf `
+    --ref-wav $Voice `
+    --lang Korean `
+    --temp 0.7 `
+    -o $Output
 
-# --- Get text (UTF-8, Korean supported) ---
-Write-Host ""
-Write-Host "Enter text to speak (Korean supported):" -ForegroundColor Cyan
-$text = Read-Host
-
-# Save text to UTF-8 file (NO BOM) and pipe to qwen-tts
-$tmpFile = "$env:TEMP\tts_input_$([System.Guid]::NewGuid().ToString('N')).txt"
-[System.IO.File]::WriteAllLines($tmpFile, $text, [System.Text.UTF8Encoding]::new($false))
-
-Write-Host ""
-Write-Host "Generating... (this may take 30-60 seconds)" -ForegroundColor Yellow
-
-# Run qwen-tts: redirect stdin from UTF-8 file
-Get-Content $tmpFile -Raw | & "$BIN\qwen-tts.exe" --model $MODEL --codec $CODEC --ref-wav $voice --lang Korean -o $OUTPUT
-
-# Cleanup
+# 임시 파일 삭제
 Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue
 
-Write-Host ""
-Write-Host "✅ Done! Saved to: $OUTPUT" -ForegroundColor Green
-Write-Host "   File size: $((Get-Item $OUTPUT).Length / 1024) KB"
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✅ 완료! $Output" -ForegroundColor Green
+} else {
+    Write-Host "❌ 실패" -ForegroundColor Red
+}
