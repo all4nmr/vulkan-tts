@@ -112,7 +112,16 @@ export default function TTSPanel({ lang }: Props) {
         qwenTtsPath: "",
       });
       console.log(result);
-      setAudioSrc(`file://${defaultOutput}`);
+      // Read the generated WAV as base64 data URL for playback
+      const { readFile } = await import("@tauri-apps/plugin-fs");
+      try {
+        const wavBytes = await readFile(defaultOutput);
+        const blob = new Blob([wavBytes], { type: "audio/wav" });
+        setAudioSrc(URL.createObjectURL(blob));
+      } catch (e) {
+        console.error("Failed to read WAV for preview:", e);
+        setAudioSrc(defaultOutput);
+      }
       if (audioRef.current) audioRef.current.load();
     } catch (err) {
       console.error("TTS failed:", err);
