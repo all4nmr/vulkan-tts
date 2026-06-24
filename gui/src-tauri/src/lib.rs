@@ -6,7 +6,11 @@ use tauri::{command, AppHandle, Emitter};
 // ── Estimate how many BPE tokens a text needs ──
 fn estimate_tokens(text: &str) -> usize {
     let char_len = text.chars().count();
-    (char_len as f64 * 1.3).ceil() as usize + 30 // 30 tokens overhead for chat template
+    let hangul_count = text.chars().filter(|c| matches!(c, '\u{AC00}'..='\u{D7A3}')).count();
+    let hangul_ratio = hangul_count as f64 / char_len.max(1) as f64;
+    // Korean chars: ~2 tokens/char, English/others: ~0.6 tokens/char
+    let avg_tokens = 0.6 + hangul_ratio * 1.4;
+    (char_len as f64 * avg_tokens).ceil() as usize + 50 // 50 tokens overhead
 }
 
 // ── Split text at sentence boundaries into chunks ──
@@ -239,8 +243,8 @@ async fn run_tts(
     temp: f64,
     qwen_tts_path: String,
 ) -> Result<String, String> {
-    // Max tokens per chunk: leave room for max_new_tokens=2048 + 100 overhead
-    let max_tokens_per_chunk = 1800usize;
+    // Max tokens per chunk: safe limit for 2048-token model
+    let max_tokens_per_chunk = 1200usize;
     let chunks = split_text(&text, max_tokens_per_chunk);
     let total_chunks = chunks.len();
 
