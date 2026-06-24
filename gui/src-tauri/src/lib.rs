@@ -114,32 +114,56 @@ fn read_wav_data(path: &str) -> Result<(Vec<u8>, u32, u16, u16), String> {
         return Err("Not a valid WAV file (too short)".to_string());
     }
 
-    // Read WAV header
     let _chunk_id = &buf[0..4];     // "RIFF"
     let _file_size = u32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]);
     let _format = &buf[8..12];       // "WAVE"
-    let _subchunk1_id = &buf[12..16]; // "fmt "
-    let _subchunk1_size = u32::from_le_bytes([buf[16], buf[17], buf[18], buf[19]]);
-    let audio_format = u16::from_le_bytes([buf[20], buf[21]]);
-    let num_channels = u16::from_le_bytes([buf[22], buf[23]]);
-    let sample_rate = u32::from_le_bytes([buf[24], buf[25], buf[26], buf[27]]);
-    let _byte_rate = u32::from_le_bytes([buf[28], buf[29], buf[30], buf[31]]);
-    let _block_align = u16::from_le_bytes([buf[32], buf[33]]);
-    let _bits_per_sample = u16::from_le_bytes([buf[34], buf[35]]);
 
-    // Find data chunk
-    let mut offset = 36 + _subchunk1_size as usize;
+    // Scan all chunks starting from offset 12 (after RIFF + file_size + WAVE)
+    let mut sample_rate: u32 = 24000;
+    let mut num_channels: u16 = 1;
+    let mut bits_per_sample: u16 = 16;
+    let mut audio_data: Option<Vec<u8>> = None;
+
+    let mut offset = 12;
     while offset + 8 <= buf.len() {
         let chunk_id = &buf[offset..offset+4];
         let chunk_size = u32::from_le_bytes([buf[offset+4], buf[offset+5], buf[offset+6], buf[offset+7]]) as usize;
-        if chunk_id == b"data" {
-            let data = buf[offset+8..offset+8+chunk_size].to_vec();
-            return Ok((data, sample_rate, num_channels, audio_format));
+        
+        // Guard against malformed chunk sizes
+        if chunk_size > buf.len().saturating_sub(offset + 8) {
+            break;
+        }
+
+        match chunk_id {
+            b"fmt " => {
+                if chunk_size >= 16 {
+                    let audio_fmt = u16::from_le_bytes([buf[offset+8], buf[offset+9]]);
+                    if audio_fmt != 1 {
+                        return Err(format!("Unsupported WAV format: {} (only PCM=1 supported)", audio_fmt));
+                    }
+                    num_channels = u16::from_le_bytes([buf[offset+10], buf[offset+11]]);
+                    sample_rate = u32::from_le_bytes([buf[offset+12], buf[offset+13], buf[offset+14], buf[offset+15]]);
+                    bits_per_sample = u16::from_le_bytes([buf[offset+22], buf[offset+23]]);
+                }
+            }
+            b"data" => {
+                let data = buf[offset+8..offset+8+chunk_size].to_vec();
+                audio_data = Some(data);
+                break; // data should be the last chunk
+            }
+            _ => {}
         }
         offset += 8 + chunk_size;
+        // Pad to word boundary (some writers add padding byte)
+        if offset % 2 != 0 {
+            offset += 1;
+        }
     }
 
-    Err("No data chunk found in WAV".to_string())
+    match audio_data {
+        Some(data) => Ok((data, sample_rate, num_channels, bits_per_sample)),
+        None => Err("No data chunk found in WAV".to_string()),
+    }
 }
 
 fn write_wav(path: &str, data_chunks: &[Vec<u8>], sample_rate: u32, num_channels: u16, bits_per_sample: u16) -> Result<(), String> {
