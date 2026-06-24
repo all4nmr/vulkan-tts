@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+use std::time::Duration;
 use tauri::{command, AppHandle, Emitter};
 
 // ── Estimate how many BPE tokens a text needs ──
@@ -66,11 +67,13 @@ fn split_paragraph(text: &str, max_tokens: usize) -> Vec<String> {
     let mut current = String::new();
     let mut current_tokens = 0usize;
 
-    // Split by sentence endings
+    // Split by sentence endings AND force-split every 1200 chars for Korean
     let mut sentence_buf = String::new();
     for ch in text.chars() {
         sentence_buf.push(ch);
-        if matches!(ch, '.' | '!' | '?' | '\n') {
+        // Split on punctuation OR when sentence_buf exceeds 1200 chars (Korean fallback)
+        let force_split = sentence_buf.chars().count() >= 1200;
+        if matches!(ch, '.' | '!' | '?' | '\n' | '~' | '…') || force_split {
             let st_tokens = estimate_tokens(&sentence_buf);
             if current_tokens + st_tokens > max_tokens && !current.is_empty() {
                 chunks.push(current.clone());
@@ -83,7 +86,7 @@ fn split_paragraph(text: &str, max_tokens: usize) -> Vec<String> {
         }
     }
 
-    // Remaining text after last sentence
+    // Remaining text after last split
     if !sentence_buf.is_empty() {
         let rem_tokens = estimate_tokens(&sentence_buf);
         if current_tokens + rem_tokens > max_tokens && !current.is_empty() {
@@ -96,6 +99,10 @@ fn split_paragraph(text: &str, max_tokens: usize) -> Vec<String> {
 
     if !current.is_empty() {
         chunks.push(current);
+    }
+
+    if chunks.is_empty() {
+        chunks.push(text.to_string());
     }
 
     chunks
@@ -284,7 +291,7 @@ async fn run_tts(
             0
         };
 
-        // Emit chunk progress
+        // Emit chunk progress with small delay for frontend to catch up
         let _ = app_handle.emit("tts-progress", serde_json::json!({
             "phase": "synthesizing",
             "chunk": chunk_idx,
@@ -293,49 +300,100 @@ async fn run_tts(
             "chunk_percent": 0,
             "text": format!("청크 {}/{} 변환 중...", chunk_idx, total_chunks)
         }));
+        std::thread::sleep(Duration::from_millis(50));
 
-        // Spawn qwen-tts for this chunk
-        let mut cmd = Command::new(&qwen_path);
-        cmd.arg("--model")
-            .arg(&model_path)
-            .arg("--codec")
-            .arg(&codec_path)
-            .arg("--lang")
-            .arg(&lang)
-            .arg("--temp")
-            .arg(temp.to_string())
-            .arg("-o")
-            .arg(&chunk_out_str)
-            .stdin(Stdio::piped())
-            .stderr(Stdio::piped());
+        // Auto-retry once on first chunk failure (GPU init race condition)
+        let mut last_error: Option<String> = None;
+        for attempt in 0..2 {
+            if attempt > 0 && last_error.is_some() {
+                let _ = app_handle.emit("tts-progress", serde_json::json!({
+                    "phase": "synthesizing",
+                    "chunk": chunk_idx,
+                    "total_chunks": total_chunks,
+                    "percent": progress_base,
+                    "chunk_percent": 0,
+                    "text": format!("재시도 {}/2...", attempt + 1)
+                }));
+                std::thread::sleep(Duration::from_millis(300));
+            }
 
-        if !ref_wav.is_empty() {
-            cmd.arg("--ref-wav").arg(&ref_wav);
+            // Spawn qwen-tts for this chunk
+            let mut cmd = Command::new(&qwen_path);
+            cmd.arg("--model")
+                .arg(&model_path)
+                .arg("--codec")
+                .arg(&codec_path)
+                .arg("--lang")
+                .arg(&lang)
+                .arg("--temp")
+                .arg(temp.to_string())
+                .arg("-o")
+                .arg(&chunk_out_str)
+                .stdin(Stdio::piped())
+                .stderr(Stdio::piped());
+
+            if !ref_wav.is_empty() {
+                cmd.arg("--ref-wav").arg(&ref_wav);
+            }
+            if !speaker.is_empty() {
+                cmd.arg("--speaker").arg(&speaker);
+            }
+
+            let child = match cmd.spawn() {
+                Ok(c) => c,
+                Err(e) => {
+                    if attempt == 0 && chunk_idx == 1 {
+                        last_error = Some(format!("{}", e));
+                        continue;
+                    }
+                    return Err(format!("Failed to start qwen-tts for chunk {}: {}", chunk_idx, e));
+                }
+            };
+
+            // Write text to stdin
+            let mut child = child;
+            if let Some(mut stdin) = child.stdin.take() {
+                if let Err(e) = stdin.write_all(chunk_text.as_bytes()) {
+                    if attempt == 0 && chunk_idx == 1 {
+                        last_error = Some(format!("{}", e));
+                        continue;
+                    }
+                    return Err(format!("Failed to write chunk {} to stdin: {}", chunk_idx, e));
+                }
+            }
+
+            let output = match child.wait_with_output() {
+                Ok(o) => o,
+                Err(e) => {
+                    if attempt == 0 && chunk_idx == 1 {
+                        last_error = Some(format!("{}", e));
+                        continue;
+                    }
+                    return Err(format!("Failed to wait for chunk {}: {}", chunk_idx, e));
+                }
+            };
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if attempt == 0 && chunk_idx == 1 {
+                    last_error = Some(format!("exit {}: {}", output.status.code().unwrap_or(-1), stderr));
+                    continue;
+                }
+                return Err(format!(
+                    "Chunk {} failed (exit {}): {}",
+                    chunk_idx,
+                    output.status.code().unwrap_or(-1),
+                    stderr
+                ));
+            }
+
+            // Success - clear error and proceed
+            last_error = None;
+            break;
         }
-        if !speaker.is_empty() {
-            cmd.arg("--speaker").arg(&speaker);
-        }
 
-        let mut child = cmd.spawn()
-            .map_err(|e| format!("Failed to start qwen-tts for chunk {}: {}", chunk_idx, e))?;
-
-        // Write text to stdin
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(chunk_text.as_bytes())
-                .map_err(|e| format!("Failed to write chunk {} to stdin: {}", chunk_idx, e))?;
-        }
-
-        let output = child.wait_with_output()
-            .map_err(|e| format!("Failed to wait for chunk {}: {}", chunk_idx, e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!(
-                "Chunk {} failed (exit {}): {}",
-                chunk_idx,
-                output.status.code().unwrap_or(-1),
-                stderr
-            ));
+        if let Some(e) = last_error {
+            return Err(format!("Chunk {} failed after retry: {}", chunk_idx, e));
         }
 
         // Read WAV data for concatenation
