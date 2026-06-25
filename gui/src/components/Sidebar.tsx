@@ -39,7 +39,7 @@ export default function Sidebar({ screen, onNavigate }: Props) {
       <div className="sidebar-footer">
         <div className="gpu-status">
           <div className="gpu-dot" />
-          <span>ROCm · 16 GB</span>
+          <span>Vulkan · GPU 가속</span>
         </div>
       </div>
     </nav>
