@@ -642,3 +642,124 @@ textarea {
   .nav-item { justify-content: center; padding: 8px; }
   .content { padding: 16px; }
 }
+
+/* ── Advanced Settings ── */
+.advanced-card {
+  padding: 0;
+  overflow: hidden;
+}
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+  transition: color 0.15s;
+}
+.advanced-toggle:hover {
+  color: var(--text-primary);
+}
+.advanced-toggle-icon {
+  font-size: 10px;
+  width: 16px;
+  text-align: center;
+}
+.advanced-controls {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+.advanced-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.advanced-row .form-label {
+  margin-bottom: 2px;
+}
+.advanced-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.slider-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 24px;
+  text-align: center;
+}
+.slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.seed-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.seed-input {
+  width: 110px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  outline: none;
+}
+.seed-input:focus {
+  border-color: var(--accent);
+}
+.btn-tiny {
+  padding: 4px 8px;
+  font-size: 14px;
+  min-width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox-row .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.checkbox-row .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}

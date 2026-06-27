@@ -27,6 +27,14 @@ const LABELS = {
   browse: { ko: "찾기", en: "Browse" },
   output: { ko: "출력 파일", en: "Output File" },
   saveAs: { ko: "저장 위치", en: "Save As" },
+  advanced: { ko: "고급 설정", en: "Advanced" },
+  temperature: { ko: "온도 (Temperature)", en: "Temperature" },
+  subTemperature: { ko: "하위 온도 (Sub-Temp)", en: "Sub-Temperature" },
+  seed: { ko: "시드 (Seed, -1=랜덤)", en: "Seed (-1=random)" },
+  greedy: { ko: "Greedy 모드 (완전 결정적)", en: "Greedy (fully deterministic)" },
+  greedyDesc: { ko: "확률 샘플링을 끄고 항상 argmax 선택. 음성 일관성 최대화.", en: "Disable stochastic sampling, always pick argmax. Max voice consistency." },
+  tempDesc: { ko: "낮을수록 일관된 음성, 높을수록 다양한 표현", en: "Lower = consistent, higher = varied expression" },
+  seedDesc: { ko: "같은 시드 + 같은 온도 = 같은 출력. -1은 매번 랜덤.", en: "Same seed + same temp = same output. -1 = random each time." },
 };
 
 export default function TTSPanel({ lang }: Props) {
@@ -39,6 +47,13 @@ export default function TTSPanel({ lang }: Props) {
   const [generating, setGenerating] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Advanced controls
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [temperature, setTemperature] = useState(0.9);
+  const [subTemperature, setSubTemperature] = useState(0.9);
+  const [seed, setSeed] = useState(-1);
+  const [greedy, setGreedy] = useState(false);
 
   // Progress state
   const [progress, setProgress] = useState({ percent: 0, chunk: 0, totalChunks: 0, phase: "", text: "" });
@@ -96,7 +111,10 @@ export default function TTSPanel({ lang }: Props) {
         lang: ttsLang,
         speaker: "",
         outputPath: defaultOutput,
-        temp: 0.7,
+        temp: temperature,
+        subTemp: subTemperature,
+        seed: greedy ? 0 : seed,
+        greedy: greedy,
         qwenTtsPath: "",
       });
       console.log(result);
@@ -184,6 +202,96 @@ export default function TTSPanel({ lang }: Props) {
             <button className="btn btn-small" onClick={browseOutput}>{l("saveAs")}</button>
           </div>
         </div>
+      </div>
+
+      {/* Advanced Settings Toggle */}
+      <div className="card advanced-card">
+        <div
+          className="advanced-toggle"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+        >
+          <span className="advanced-toggle-icon">{showAdvanced ? "▼" : "▶"}</span>
+          <span>{l("advanced")}</span>
+        </div>
+
+        {showAdvanced && (
+          <div className="advanced-controls">
+            {/* Temperature */}
+            <div className="advanced-row">
+              <label className="form-label">{l("temperature")}: <strong>{temperature.toFixed(1)}</strong></label>
+              <div className="slider-row">
+                <span className="slider-label">0.0</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2.0"
+                  step="0.1"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                  className="slider"
+                />
+                <span className="slider-label">2.0</span>
+              </div>
+              <div className="advanced-desc">{l("tempDesc")}</div>
+            </div>
+
+            {/* Sub-Temperature */}
+            <div className="advanced-row">
+              <label className="form-label">{l("subTemperature")}: <strong>{subTemperature.toFixed(1)}</strong></label>
+              <div className="slider-row">
+                <span className="slider-label">0.0</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="2.0"
+                  step="0.1"
+                  value={subTemperature}
+                  onChange={(e) => setSubTemperature(parseFloat(e.target.value))}
+                  className="slider"
+                />
+                <span className="slider-label">2.0</span>
+              </div>
+            </div>
+
+            {/* Seed */}
+            <div className="advanced-row">
+              <label className="form-label">{l("seed")}</label>
+              <div className="seed-input-row">
+                <input
+                  type="number"
+                  min="-1"
+                  max="999999"
+                  value={greedy ? 0 : seed}
+                  onChange={(e) => setSeed(parseInt(e.target.value) || -1)}
+                  className="seed-input"
+                  disabled={greedy}
+                />
+                <button
+                  className="btn btn-tiny"
+                  onClick={() => setSeed(Math.floor(Math.random() * 99999))}
+                  disabled={greedy}
+                  title="Random seed"
+                >
+                  🎲
+                </button>
+              </div>
+              <div className="advanced-desc">{l("seedDesc")}</div>
+            </div>
+
+            {/* Greedy checkbox */}
+            <div className="advanced-row checkbox-row">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={greedy}
+                  onChange={(e) => setGreedy(e.target.checked)}
+                />
+                <span>{l("greedy")}</span>
+              </label>
+              <div className="advanced-desc">{l("greedyDesc")}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Generate Button */}

@@ -241,8 +241,23 @@ async fn run_tts(
     speaker: String,
     output_path: String,
     temp: f64,
+    sub_temp: f64,
+    seed: i32,
+    greedy: bool,
     qwen_tts_path: String,
 ) -> Result<String, String> {
+    // Resolve seed: -1 means random → generate a fixed seed once for all chunks
+    let final_seed: i64 = if seed < 0 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos() as i64;
+        nanos
+    } else {
+        seed as i64
+    };
+
     // Max tokens per chunk: safe limit for 2048-token model
     let max_tokens_per_chunk = 1200usize;
     let chunks = split_text(&text, max_tokens_per_chunk);
@@ -331,10 +346,18 @@ async fn run_tts(
                 .arg(&lang)
                 .arg("--temp")
                 .arg(temp.to_string())
+                .arg("--sub-temp")
+                .arg(sub_temp.to_string())
+                .arg("--seed")
+                .arg(final_seed.to_string())
                 .arg("-o")
                 .arg(&chunk_out_str)
                 .stdin(Stdio::piped())
                 .stderr(Stdio::piped());
+
+            if greedy {
+                cmd.arg("--greedy");
+            }
 
             if !ref_wav.is_empty() {
                 cmd.arg("--ref-wav").arg(&ref_wav);
